@@ -3,19 +3,6 @@ import manager
 import request
 import os
 import glob
-import importlib.util
-
-plugins = []
-
-def run_plugin(file):
-	name = os.path.splitext(os.path.basename(file).replace(" ", "_"))[0]
-	spec = importlib.util.spec_from_file_location("plubin_" + name, file)
-	module = importlib.util.module_from_spec(spec)
-	module.request = request
-	module.manager = manager
-	module.client = client
-	spec.loader.exec_module(module)
-	plugins.append(module)
 
 def clear_console():
 	if (os.name == "nt"):
@@ -77,16 +64,15 @@ manager.add_event_setting(manager.event_setting_string("url", "URL of the chat")
 manager.add_event_setting(manager.event_setting_string("user_name", "User name"))
 manager.add_event_setting(manager.event_setting_string("password", "password"))
 manager.add_event_setting(manager.event_setting_weekly_calendar("days", "Select the days of the week to join the chat"))
-print("Loading plugins...")
 if (not(os.path.exists("plugins"))):
 	os.mkdir("plugins")
 for file in glob.glob("plugins/*.py"):
-	run_plugin(file)
-print("Loaded " + str(len(plugins)) + " plugins")
-print("Loading chats...")
+	print("Loading plugin " + file + "...")
+	manager.run_plugin(file)
 if (not(os.path.exists("chats"))):
 	os.mkdir("chats")
 for file in glob.glob("chats/*.json"):
+	print("Loading chat " + file + "...")
 	manager.load_chat(file)
 print("Loading chat state manager...")
 state_manager_thread = manager.event_state_manager_thread()

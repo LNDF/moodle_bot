@@ -4,8 +4,11 @@ import json
 import datetime
 import time
 import client
+import importlib.util
+import traceback
 from threading import Thread
 
+plugins = {}
 events = []
 event_settings = []
 chat_client_events = {
@@ -17,8 +20,10 @@ chat_client_events = {
 }
 
 class event_setting():
-	def __init__(self, name, namespace="main"):
+	def __init__(self, name, namespace=None):
 		self.name = name
+		if (namespace == None):
+			namespace = get_current_plugin_name()
 		self.namespace = namespace
 
 	def get_setting(self, event):
@@ -30,14 +35,14 @@ class event_setting():
 
 	def set_setting(self, event, value):
 		if (not(self.namespace in event.cfg)):
-			event.cfg[namespace] = {}
+			event.cfg[self.namespace] = {}
 		event.cfg[self.namespace][self.name] = value
 
 	def ask_setting(self, event):
 		pass
 
 class event_setting_string(event_setting):
-	def __init__(self, name, question, namespace="main"):
+	def __init__(self, name, question, namespace=None):
 		super().__init__(name, namespace)
 		self.question = question
 
@@ -46,7 +51,7 @@ class event_setting_string(event_setting):
 		return friendly_input(self.question, current)
 
 class event_setting_int(event_setting):
-	def __init__(self, name, question, min_bound, max_bound, namespace="main"):
+	def __init__(self, name, question, min_bound=-1, max_bound=-1, namespace=None):
 		super().__init__(name, namespace)
 		self.question = question
 		self.min_bound = min_bound
@@ -57,7 +62,7 @@ class event_setting_int(event_setting):
 		return friendly_input_int(self.question, current, self.min_bound, self.max_bound)
 
 class event_setting_time(event_setting):
-	def __init__(self, name, question, namespace="main"):
+	def __init__(self, name, question, namespace=None):
 		super().__init__(name, namespace)
 		self.question = question
 
@@ -82,7 +87,7 @@ class event_setting_time(event_setting):
 		return friendly_input_time(self.question, current)
 
 class event_setting_select(event_setting):
-	def __init__(self, name, options, question, multiple=False, max_items=-1, namespace="main"):
+	def __init__(self, name, options, question, multiple=False, max_items=-1, namespace=None):
 		super().__init__(name, namespace)
 		self.options = options
 		self.question = question
@@ -94,7 +99,7 @@ class event_setting_select(event_setting):
 		return friendly_input_select(self.question, current, self.options, self.multiple, self.max_items)
 
 class event_setting_weekly_calendar(event_setting_select):
-	def __init__(self, name, question, multiple=True, namespace="main"):
+	def __init__(self, name, question, multiple=True, namespace=None):
 		options = [
 			"Monday",
 			"Tuesday",
@@ -204,13 +209,17 @@ class event_manager():
 			return False
 		return url[:pos]
 
-	def get_setting(self, name, namespace="main"):
+	def get_setting(self, name, namespace=None):
+		if (namespace == None):
+			namespace = get_current_plugin_name()
 		for setting in event_settings:
 			if (setting.name == name and setting.namespace == namespace):
 				return setting.get_setting(self)
 		return None
 
-	def set_setting(self, value, name, namespace="main"):
+	def set_setting(self, value, name, namespace=None):
+		if (namespace == None):
+			namespace = get_current_plugin_name()
 		for setting in event_settings:
 			if (setting.name == name and setting,namespace == namespace):
 				setting.set_setting(self, value)
@@ -218,17 +227,20 @@ class event_manager():
 		return False
 
 	def is_defined(self):
+		settings = []
 		for setting in event_settings:
 			if (setting.get_setting(self) == None):
-				return False
-		return True
+				settings.append(setting)
+		return settings
 
-	def friendly_ask(self, create=False):
-		for setting in event_settings:
+	def friendly_ask(self, create=False, settings=[]):
+		if (len(settings) == 0):
+			settings = event_settings
+		for setting in settings:
 			value = setting.ask_setting(self)
 			setting.set_setting(self, value)
 		if (create == True):
-			self.filename = get_filename_from_name(self.get_setting("name"), "chats/", ".json")
+			self.filename = get_filename_from_name(self.get_setting("name", "main"), "chats/", ".json")
 		self.save()
 		if (create == True):
 			print("Chat created")
@@ -250,11 +262,13 @@ class event_manager():
 		file = open(self.filename)
 		self.cfg = json.loads(file.read())
 		file.close()
-		if (not(self.is_defined())):
-			self.friendly_ask()
+		undefined = self.is_defined()
+		if (len(undefined) > 0):
+			print("Some settings are undefined in the " + self.get_setting("name", "main") + " chat")
+			self.friendly_ask(False, undefined)
 
 	def should_join_chat(self, date):
-		days = self.get_setting("days")
+		days = self.get_setting("days", "main")
 		week_day = date.weekday()
 		if (week_day in days):
 			if (days[week_day]["start"] == None or days[week_day]["end"] == None):
@@ -265,8 +279,8 @@ class event_manager():
 		return False
 
 	def join_chat(self, lock=False):
-		user = self.get_setting("user_name")
-		password = self.get_setting("password")
+		user = self.get_setting("user_name", "main")
+		password = self.get_setting("password", "main")
 		url = self.get_root_url()
 		moodle_client = client.moodle_client(user, password, url)
 		if (moodle_client.login()):
@@ -276,7 +290,7 @@ class event_manager():
 			moodle_client.chat_event_on_message = receive_message
 			moodle_client.chat_event_join = join_chat
 			moodle_client.chat_event_leave = leave_chat
-			if (moodle_client.join_chat(self.get_setting("url"))):
+			if (moodle_client.join_chat(self.get_setting("url", "main"))):
 				self.moodle_client = moodle_client
 				self.joined = True
 				self.locked = lock
@@ -368,7 +382,7 @@ def display_chat_viewer(select=False):
 	if (select == True):
 		print("   0. Cancel")
 	for event in events:
-		print("   " + str(i) + ". " + event.get_setting("name") + " joined=" + str(event.joined) + ", locked=" + str(event.locked))
+		print("   " + str(i) + ". " + event.get_setting("name", "main") + " joined=" + str(event.joined) + ", locked=" + str(event.locked))
 		i += 1
 	if (select == False):
 		return -1
@@ -500,3 +514,17 @@ def friendly_input_select(text, empty, options, multiple=False, max_items=-1):
 		except:
 			continue
 	return selected_array
+
+def run_plugin(file):
+	name = os.path.splitext(os.path.basename(file))[0]
+	spec = importlib.util.spec_from_file_location("plubin_" + name, file)
+	module = importlib.util.module_from_spec(spec)
+	plugins[file] = module
+	spec.loader.exec_module(module)
+
+def get_current_plugin_name():
+	stack = traceback.extract_stack()
+	for frame in stack:
+		if (frame.filename in plugins):
+			return plugins[frame.filename].__name__
+	return "main"
