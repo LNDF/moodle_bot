@@ -3,12 +3,19 @@ import manager
 import request
 import os
 import glob
+import importlib.util
+
+plugins = []
 
 def run_plugin(file):
-	f = open(file)
-	src = f.read()
-	f.close()
-	exec(src, {"client": client, "manager": manager, "request": request})
+	name = os.path.splitext(os.path.basename(file).replace(" ", "_"))[0]
+	spec = importlib.util.spec_from_file_location("plubin_" + name, file)
+	module = importlib.util.module_from_spec(spec)
+	module.request = request
+	module.manager = manager
+	module.client = client
+	spec.loader.exec_module(module)
+	plugins.append(module)
 
 def clear_console():
 	if (os.name == "nt"):
@@ -75,6 +82,7 @@ if (not(os.path.exists("plugins"))):
 	os.mkdir("plugins")
 for file in glob.glob("plugins/*.py"):
 	run_plugin(file)
+print("Loaded " + str(len(plugins)) + " plugins")
 print("Loading chats...")
 if (not(os.path.exists("chats"))):
 	os.mkdir("chats")
