@@ -7,13 +7,18 @@ def get_attr_from_attrs(attrs, attr):
 			return at[1]
 	return None
 
+def data_is_valid(data):
+	for c in data:
+		if (c != "\n" and c != " "):
+			return True
+	return False
+
 class basic_parser(HTMLParser):
 	parsed = ""
 	text_div_depth = 0
 	parse_complete = False
 
 	def handle_starttag(self, tag, attrs):
-		if (tag == "div" and get_attr_from_attrs(attrs, "class") == "text"):
 		if (self.parse_complete == False and tag == "div" and (get_attr_from_attrs(attrs, "class") == "text" or self.text_div_depth > 0)):
 			self.text_div_depth += 1
 
@@ -25,7 +30,8 @@ class basic_parser(HTMLParser):
 					self.parse_complete = True
 
 	def handle_data(self, data):
-		if (self.text_div_depth > 0):
+		if (self.text_div_depth > 0 and data_is_valid(data)):
+			print(data.encode("utf-8"))
 			self.parsed += data
 
 def basic_message_parser_event_handler(client, message, current):
@@ -33,7 +39,6 @@ def basic_message_parser_event_handler(client, message, current):
 		return current
 	parser = basic_parser()
 	parser.feed(message["message"])
-	parser.parsed = parser.parsed.replace("\n    ", "")
 	if (parser.parsed == ""):
 		return None
 	else:
