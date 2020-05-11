@@ -334,9 +334,13 @@ def receive_message(client, msg):
 			callback(client, msg)
 
 def parse_message(client, msg):
+	current = None
 	if ("parse_message" in chat_client_events):
 		for callback in chat_client_events["parse_message"]:
-			callback(client, msg)
+			c = callback(client, msg, current)
+			if (c != None):
+				current = c
+	return current
 
 def user_chage(client, joining_users, leaving_users):
 	if ("user_chage" in chat_client_events):
