@@ -8,6 +8,7 @@ import importlib.util
 import traceback
 from threading import Thread
 
+background_mode = False
 plugins = {}
 events = []
 event_settings = []
@@ -430,6 +431,8 @@ def add_event_setting(setting):
 	event_settings.append(setting)
 
 def friendly_input(text, empty):
+	if (background_mode == True):
+		return None
 	got_text = ""
 	if (empty != None):
 		return (input(text + " (empty: " + str(empty) + "): ") or empty)

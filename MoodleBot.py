@@ -2,6 +2,7 @@ import client
 import manager
 import request
 import os
+import sys
 import glob
 
 def clear_console():
@@ -83,4 +84,10 @@ for file in glob.glob("chats/*.json"):
 print("Loading chat state manager...")
 state_manager_thread = manager.event_state_manager_thread()
 state_manager_thread.start()
-main_thread_loop()
+if (len(sys.argv) == 2 and sys.argv[1] == "background"):
+	manager.background_mode = True
+	print("Running in background mode")
+	state_manager_thread.join()
+else:
+	print("Use \"background\" argument to run in background and stop interactions.")
+	main_thread_loop()
