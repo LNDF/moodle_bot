@@ -189,6 +189,15 @@ class event_setting_weekly_calendar(event_setting_select):
 			final[int(day)]["end"] = end_time
 		return final
 
+class event_setting_boolean(event_setting):
+	def __init__(self, name, question, namespace=None):
+		super().__init__(name, namespace)
+		self.question = question
+
+	def ask_setting(self, event):
+		current = self.get_setting(event)
+		return friendly_input_boolean(self.question, current)
+
 class event_manager():
 	start_time = None
 	end_time = None
@@ -521,6 +530,19 @@ def friendly_input_select(text, empty, options, multiple=False, max_items=-1):
 		except:
 			continue
 	return selected_array
+
+def friendly_input_boolean(text, empty):
+	if (empty != None):
+		if (empty == True):
+			empty == "yes"
+		else:
+			empty == "no"
+	scan = ""
+	while (scan != "yes" and scan != "no"):
+		scan = friendly_input(text + " (yes/no)", empty).lower()
+	if (scan == "yes"):
+		return True
+	return False
 
 def run_plugin(file):
 	name = os.path.splitext(os.path.basename(file))[0]
