@@ -292,6 +292,8 @@ class event_manager():
 		user = self.get_setting("user_name", "main")
 		password = self.get_setting("password", "main")
 		url = self.get_root_url()
+		if (url == False):
+			return False
 		moodle_client = client.moodle_client(user, password, url)
 		if (moodle_client.login()):
 			moodle_client.chat = self
@@ -537,6 +539,8 @@ def friendly_input_boolean(text, empty):
 			current = "yes"
 		else:
 			current = "no"
+	else:
+		current = None
 	scan = ""
 	while (scan != "yes" and scan != "no"):
 		scan = friendly_input(text + " (yes/no)", current).lower()
