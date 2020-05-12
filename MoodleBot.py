@@ -71,6 +71,8 @@ manager.add_event_setting(manager.event_setting_string("url", "URL of the chat")
 manager.add_event_setting(manager.event_setting_string("user_name", "User name"))
 manager.add_event_setting(manager.event_setting_string("password", "password"))
 manager.add_event_setting(manager.event_setting_weekly_calendar("days", "Select the days of the week to join the chat"))
+manager.add_event_setting(manager.event_setting_dummy("locked", False, [False, True]))
+manager.add_event_setting(manager.event_setting_dummy("locked_join", False, [False, True]))
 if (not(os.path.exists("plugins"))):
 	os.mkdir("plugins")
 for file in glob.glob("plugins/*.py"):
