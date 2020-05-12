@@ -15,7 +15,7 @@ event_settings = []
 chat_client_events = {
 	"receive_message": [],
 	"parse_message": [],
-	"user_chage": [],
+	"user_change": [],
 	"join_chat": [],
 	"leave_chat": []
 }
@@ -295,7 +295,7 @@ class event_manager():
 		moodle_client = client.moodle_client(user, password, url)
 		if (moodle_client.login()):
 			moodle_client.chat = self
-			moodle_client.chat_event_user = user_chage
+			moodle_client.chat_event_user = user_change
 			moodle_client.chat_event_parse = parse_message
 			moodle_client.chat_event_on_message = receive_message
 			moodle_client.chat_event_join = join_chat
@@ -351,10 +351,10 @@ def parse_message(client, msg):
 				current = c
 	return current
 
-def user_chage(client, joining_users, leaving_users):
-	if ("user_chage" in chat_client_events):
-		for callback in chat_client_events["user_chage"]:
-			callback(client, msg)
+def user_change(client, joining_users, leaving_users):
+	if ("user_change" in chat_client_events):
+		for callback in chat_client_events["user_change"]:
+			callback(client, joining_users, leaving_users)
 
 def join_chat(client):
 	if ("join_chat" in chat_client_events):
@@ -368,7 +368,7 @@ def leave_chat(client):
 
 def add_chat_client_event(event_type, callback):
 	if (not(event_type in chat_client_events)):
-		chat_client_events[event_type] = {}
+		chat_client_events[event_type] = []
 	chat_client_events[event_type].append(callback)
 
 def load_chat(filename=False):
@@ -534,12 +534,12 @@ def friendly_input_select(text, empty, options, multiple=False, max_items=-1):
 def friendly_input_boolean(text, empty):
 	if (empty != None):
 		if (empty == True):
-			empty == "yes"
+			current = "yes"
 		else:
-			empty == "no"
+			current = "no"
 	scan = ""
 	while (scan != "yes" and scan != "no"):
-		scan = friendly_input(text + " (yes/no)", empty).lower()
+		scan = friendly_input(text + " (yes/no)", current).lower()
 	if (scan == "yes"):
 		return True
 	return False

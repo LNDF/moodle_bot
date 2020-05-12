@@ -103,7 +103,6 @@ class moodle_client():
 				self.in_chat = False
 				return False
 			self.users = json.loads(init_resp.body)["users"]
-			
 			self.pulling_thread = moodle_chat_pool_thread(self)
 			self.pulling_thread.should_leave_chat = False
 			self.chat_event_join(self)
