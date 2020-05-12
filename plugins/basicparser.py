@@ -31,7 +31,6 @@ class basic_parser(HTMLParser):
 
 	def handle_data(self, data):
 		if (self.text_div_depth > 0 and data_is_valid(data)):
-			print(data.encode("utf-8"))
 			self.parsed += data
 
 def basic_message_parser_event_handler(client, message, current):
