@@ -202,7 +202,6 @@ class event_manager():
 	start_time = None
 	end_time = None
 	joined = False
-	locked = False
 	moodle_client = None
 
 	def __init__(self, filename):
@@ -251,6 +250,9 @@ class event_manager():
 			setting.set_setting(self, value)
 		if (create == True):
 			self.filename = get_filename_from_name(self.get_setting("name", "main"), "chats/", ".json")
+		if ((not("locked" in self.cfg) or not("locked_join" in self.cfg)) or (type(self.cfg["locked"]) != bool or type(self.cfg["locked_join"]) != bool)):
+			self.cfg["locked"] = False
+			self.cfg["locked_join"] = False
 		self.save()
 		if (create == True):
 			print("Chat created")
@@ -272,6 +274,10 @@ class event_manager():
 		file = open(self.filename)
 		self.cfg = json.loads(file.read())
 		file.close()
+		if ((not("locked" in self.cfg) or not("locked_join" in self.cfg)) or (type(self.cfg["locked"]) != bool or type(self.cfg["locked_join"]) != bool)):
+			self.cfg["locked"] = False
+			self.cfg["locked_join"] = False
+			self.save()
 		undefined = self.is_defined()
 		if (len(undefined) > 0):
 			print("Some settings are undefined in the " + self.get_setting("name", "main") + " chat")
@@ -305,14 +311,22 @@ class event_manager():
 			if (moodle_client.join_chat(self.get_setting("url", "main"))):
 				self.moodle_client = moodle_client
 				self.joined = True
-				self.locked = lock
+				self.cfg["locked"] = lock
+				if (lock):
+					self.cfg["locked_join"] = True
+				if (self.cfg["locked"] != lock or lock):
+					self.save()
 				return True
 		return False
 
 	def leave_chat(self, lock=False):
 		if (self.joined):
 			self.joined = False
-			self.locked = lock
+			self.cfg["locked"] = lock
+			if (lock):
+				self.cfg["locked_join"] = False
+			if (self.cfg["locked"] != lock or lock):
+					self.save()
 			self.moodle_client.leave_chat(True)
 
 class event_state_manager_thread(Thread):
@@ -324,12 +338,17 @@ class event_state_manager_thread(Thread):
 		while True:
 			now = datetime.datetime.now()
 			for event in events:
-				if (not(event.locked)):
+				if (not(event.cfg["locked"])):
 					should_join_chat = event.should_join_chat(now)
 					if (not(event.joined) and should_join_chat):
 						event.join_chat()
 					elif (event.joined and not(should_join_chat)):
 						event.leave_chat()
+				else:
+					if (not(event.joined) and event.cfg["locked_join"] == True):
+						event.join_chat(True)
+					elif (event.joined and event.cfg["locked_join"] == False):
+						event.leave_chat(True)
 			time.sleep(1)
 
 
@@ -398,7 +417,7 @@ def display_chat_viewer(select=False):
 	if (select == True):
 		print("   0. Cancel")
 	for event in events:
-		print("   " + str(i) + ". " + event.get_setting("name", "main") + " joined=" + str(event.joined) + ", locked=" + str(event.locked))
+		print("   " + str(i) + ". " + event.get_setting("name", "main") + " joined=" + str(event.joined) + ", locked=" + str(event.cfg["locked"]))
 		i += 1
 	if (select == False):
 		return -1
@@ -414,7 +433,7 @@ def display_chat_viewer(select=False):
 
 def change_event_state(index):
 	joined = events[index].joined
-	locked = events[index].locked
+	locked = events[index].cfg["locked"]
 	join_str = "Join chat"
 	lock_str = "Lock chat state"
 	if (joined == True):
@@ -431,11 +450,12 @@ def change_event_state(index):
 			print("Leaving the chat...")
 			events[index].leave_chat(True)
 	elif (option == 1):
-		events[index].locked = not(locked)
+		events[index].cfg["locked"] = not(locked)
 		if (locked == True):
 			print("Unlocking the chat state...")
 		else:
 			print("Locking the chat state...")
+		events[index].save()
 
 def get_filename_from_name(filename, prepend, append):
 	while (path.exists(prepend + filename.replace(" ", "_") + append)):
