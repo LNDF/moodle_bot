@@ -367,10 +367,10 @@ def time_in_range(time_1, time_2, time_check=datetime.datetime.now().time()):
 	else:
 		return (time_check >= time_1 or time_check <= time_2)
 
-def receive_message(client, msg):
+def receive_message(client, msgs):
 	if ("receive_message" in chat_client_events):
 		for callback in chat_client_events["receive_message"]:
-			callback(client, msg)
+			callback(client, msgs)
 
 def parse_message(client, msg):
 	current = None

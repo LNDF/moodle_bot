@@ -33,61 +33,76 @@ class moodle_client():
 		self.password = password
 		self.url = url
 
-	def login(self):
-		search_key = "name=\"logintoken\" value=\""
-		first_request = request.make_http_request(self.url + "/login/index.php", "GET")
-		if (first_request == False):
-			return False
-		if (first_request.status_code != 200):
-			return False
-		login_token_start = first_request.body.find(search_key) + 25
-		login_token = first_request.body[login_token_start:(login_token_start + 32)]
-		session_cookie = first_request.get_header("Set-Cookie")[22:48]
-		parameters = {
-			"username": self.user,
-			"password": self.password,
-			"logintoken": login_token,
-			"anchor": ""
-		}
-		headers = {
-			"Cookie": "MoodleSessionmoodle04=" + session_cookie
-		}
-		final_request = request.make_http_form_request(self.url + "/login/index.php", headers, parameters)
-		if (final_request == False):
-			return False
-		if (final_request.status_code == 303):
-			if (final_request.get_header("Location").find("testsession") != -1):
-				self.logged_in = True
-				self.session_cookie = final_request.get_header("Set-Cookie")[22:48]
-				return True
-		return False
+	def update_cookie_if_needed(self, req):
+		if (req != False):
+			cookie = req.get_header("Set-Cookie")
+			if (cookie != None):
+				session_cookie_pos = cookie.find("MoodleSessionmoodle04=")
+				if (session_cookie_pos != -1):
+					self.session_cookie = cookie[(session_cookie_pos + 22):(session_cookie_pos + 48)]
+
+	def moodle_http_request(self, url, method, body=None, redirect=False, force_http=False, anonymous=False):
+		headers = {}
+		if (self.logged_in and not(anonymous)):
+			headers["Cookie"] = "MoodleSessionmoodle04=" + self.session_cookie
+		req = request.make_http_request(url, method, headers, body, redirect, force_http)
+		self.update_cookie_if_needed(req)
+		return req
+
+	def moodle_http_form_request(self, url, parameters={}, redirect=False, force_http=False, anonymous=False):
+		headers = {}
+		if (self.logged_in and not(anonymous)):
+			headers["Cookie"] = "MoodleSessionmoodle04=" + self.session_cookie
+		req = request.make_http_form_request(url, headers, parameters, redirect, force_http)
+		self.update_cookie_if_needed(req)
+		return req
 
 	def chat_api_interact(self, action, data={}):
 		if (self.in_chat == False):
 			return False
 		ajax_url = self.url + "/mod/chat/chat_ajax.php?sesskey=" + self.sesskey
-		headers = {
-			"Cookie": "MoodleSessionmoodle04=" + self.session_cookie
-		}
 		data["chat_sid"] = self.chat_sid
 		data["theme"] = "course_theme"
 		data["action"] = action
-		req = request.make_http_form_request(ajax_url, headers, data)
+		req = self.moodle_http_form_request(ajax_url, data)
 		if (req == False):
 			return False
 		if (req.status_code == 200):
 			return req
 		return False
 
+	def login(self):
+		search_key = "name=\"logintoken\" value=\""
+		first_request = self.moodle_http_request(self.url + "/login/index.php", "GET")
+		if (first_request == False):
+			return False
+		if (first_request.status_code != 200):
+			return False
+		login_token_start = first_request.body.find(search_key) + 25
+		login_token = first_request.body[login_token_start:(login_token_start + 32)]
+		parameters = {
+			"username": self.user,
+			"password": self.password,
+			"logintoken": login_token,
+			"anchor": ""
+		}
+		self.logged_in = True
+		final_request = self.moodle_http_form_request(self.url + "/login/index.php", parameters)
+		if (final_request == False):
+			self.logged_in = False
+			return False
+		if (final_request.status_code == 303):
+			if (final_request.get_header("Location").find("testsession") != -1):
+				return True
+		self.logged_in = False
+		return False
+
 	def join_chat(self, url):
 		if (self.logged_in == False):
 			return False
-		headers = {
-			"Cookie": "MoodleSessionmoodle04=" + self.session_cookie
-		}
 		chat_sid_search_key = "\"sid\":\""
 		sesskey_search_key = "\"sesskey\":\""
-		get_data_request = request.make_http_request(url, "GET", headers, redirect=True)
+		get_data_request = self.moodle_http_request(url, "GET", redirect=True)
 		if (get_data_request == False):
 			return False
 		chat_sid_start = get_data_request.body.find(chat_sid_search_key) + 7
@@ -105,7 +120,8 @@ class moodle_client():
 			self.users = json.loads(init_resp.body)["users"]
 			self.pulling_thread = moodle_chat_pool_thread(self)
 			self.pulling_thread.should_leave_chat = False
-			self.chat_event_join(self)
+			if (self.chat_event_join != None):
+				self.chat_event_join(self)
 			self.pulling_thread.start()
 			return True
 		return False
@@ -113,7 +129,8 @@ class moodle_client():
 	def leave_chat(self, wait=False):
 		if (self.in_chat == False):
 			return False
-		self.chat_event_leave(self)
+		if (self.chat_event_leave != None):
+			self.chat_event_leave(self)
 		self.pulling_thread.should_leave_chat = True
 		self.in_chat = False
 		self.chat_last_row = 0
@@ -159,7 +176,7 @@ class moodle_client():
 					if (not(user in users)):
 						users_leaving.append(user)
 				self.chat_event_user(self, users_joining, users_leaving)
-			self.users = parsed["users"]
+			self.users = users
 		new_messages = {}
 		if ("msgs" in parsed):
 			msgs = parsed["msgs"]
@@ -173,5 +190,4 @@ class moodle_client():
 					new_messages[msg] = msgs[msg]
 					if (self.chat_event_on_message != None):
 						self.chat_event_on_message(self, msgs[msg])
-		
 		return new_messages
