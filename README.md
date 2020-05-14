@@ -1,2 +1,2 @@
-# moodle_chat_bot
-A bot for the Moodle AJAX chat
+# moodle_bot
+A bot for Moodle (AJAX chat API, time farm...)
