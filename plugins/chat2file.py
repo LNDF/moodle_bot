@@ -41,7 +41,7 @@ def chat_user_activity(client, joining, leaving):
 		for user in leaving:
 			chat_file_write(client, user["name"] + " leaves the chat.")
 
-def chat_message(client, msgs):
+def chat_message(client, msg):
 	if (msg["issystem"] == "0" and client.chat.get_setting("enable") == True and client.chat2file_out_file != None):
 		for msg in msgs:
 			user = user_from_id(client, int(msg["userid"]))
