@@ -43,17 +43,16 @@ def chat_user_activity(client, joining, leaving):
 
 def chat_message(client, msg):
 	if (msg["issystem"] == "0" and client.chat.get_setting("enable") == True and client.chat2file_out_file != None):
-		for msg in msgs:
-			user = user_from_id(client, int(msg["userid"]))
-			if (user == None):
-				user_name = "Unknown"
-			else:
-				user_name = user["name"]
-			if (msg["parsed"] != None):
-				final_msg = msg["parsed"]
-			else:
-				final_msg = "(Unsupported message format) " + msg["message"]
-			chat_file_write(client, "<" + user_name + ">: " + final_msg)
+		user = user_from_id(client, int(msg["userid"]))
+		if (user == None):
+			user_name = "Unknown"
+		else:
+			user_name = user["name"]
+		if (msg["parsed"] != None):
+			final_msg = msg["parsed"]
+		else:
+			final_msg = "(Unsupported message format) " + msg["message"]
+		chat_file_write(client, "<" + user_name + ">: " + final_msg)
 
 manager.add_event_setting(manager.event_setting_boolean("enable", "Save all messages to a text file?"))
 manager.add_chat_client_event("join_chat", chat_join)

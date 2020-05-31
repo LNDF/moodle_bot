@@ -17,7 +17,8 @@ chat_client_events = {
 	"parse_message": [],
 	"user_change": [],
 	"join_chat": [],
-	"leave_chat": []
+	"leave_chat": [],
+	"pull_chat": []
 }
 
 class event_setting():
@@ -321,6 +322,7 @@ class event_manager():
 			moodle_client.chat_event_on_message = receive_message
 			moodle_client.chat_event_join = join_chat
 			moodle_client.chat_event_leave = leave_chat
+			moodle_client.chat_event_pull = pull_chat
 			if (moodle_client.join_chat(self.get_setting("url", "main"))):
 				self.moodle_client = moodle_client
 				self.joined = True
@@ -395,6 +397,11 @@ def leave_chat(client):
 	if ("leave_chat" in chat_client_events):
 		for callback in chat_client_events["leave_chat"]:
 			callback(client)
+
+def pull_chat(client, data):
+	if ("pull_chat" in chat_client_events):
+		for callback in chat_client_events["pull_chat"]:
+			callback(client, data)
 
 def add_chat_client_event(event_type, callback):
 	if (not(event_type in chat_client_events)):

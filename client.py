@@ -13,7 +13,7 @@ class moodle_chat_pool_thread(Thread):
 	def run(self):
 		time.sleep(1)
 		while not(self.should_leave_chat):
-			new_messages = self.client.pull_chat()
+			self.client.pull_chat()
 			time.sleep(1)
 
 class moodle_client():
@@ -27,6 +27,7 @@ class moodle_client():
 	chat_event_user = None
 	chat_event_join = None
 	chat_event_leave = None
+	chat_event_pull = None
 
 	def __init__(self, user, password, url):
 		self.user = user
@@ -160,6 +161,8 @@ class moodle_client():
 		if (resp == False):
 			return False
 		parsed = json.loads(resp.body)
+		if (self.chat_event_pull != None):
+			self.chat_event_pull(self, parsed)
 		if ("error" in parsed):
 			return parsed
 		self.chat_last_row = parsed["lastrow"]
@@ -175,7 +178,8 @@ class moodle_client():
 				for user in self.users:
 					if (not(user in users)):
 						users_leaving.append(user)
-				self.chat_event_user(self, users_joining, users_leaving)
+				if (self.chat_event_user != None):
+					self.chat_event_user(self, users_joining, users_leaving)
 			self.users = users
 		new_messages = {}
 		if ("msgs" in parsed):
